@@ -1,5 +1,6 @@
 import flet as ft
 import joblib
+import numpy as np
 
 # ۱. بارگذاری مدل رگرسیون
 MODEL_PATH = "head_brain_model.joblib"
@@ -17,9 +18,9 @@ def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 20
 
-    # تنظیمات پنجره
+    # تنظیمات پنجره (ارتفاع را برای جا دادن فیلدها و نتیجه تنظیم کردیم)
     page.window.width = 450
-    page.window.height = 650
+    page.window.height = 750
     page.window.resizable = False
 
     # تابع تغییر حالت روز و شب
@@ -48,7 +49,6 @@ def main(page: ft.Page):
         weight=ft.FontWeight.BOLD,
     )
 
-    # ردیف بالای صفحه شامل عنوان و دکمه تم
     header_row = ft.Row(
         controls=[
             title,
@@ -59,18 +59,77 @@ def main(page: ft.Page):
     )
 
     subtitle = ft.Text(
-        "پیش‌بینی وزن مغز بر اساس اندازه سر، جنسیت و رده سنی",
+        "پیش‌بینی وزن مغز بر اساس ویژگی‌های مدل",
         size=12,
         color=ft.Colors.GREY_600,
     )
 
-    status_text = ft.Text(
-        "آماده برای دریافت ورودی..." if model else "خطا در بارگذاری مدل!",
-        color=ft.Colors.GREEN if model else ft.Colors.RED,
-        weight=ft.FontWeight.W_500,
+    # ورودی‌ها
+    head_size_input = ft.TextField(
+        label="Head Size (cm³)",
+        hint_text="مثال: 3500",
+        keyboard_type=ft.KeyboardType.NUMBER,
     )
 
-    # بخش توضیحات درباره مدل به زبان انگلیسی
+    gender_dropdown = ft.Dropdown(
+        label="Gender",
+        value="1",
+        options=[
+            ft.DropdownOption(key="1", text="Male (Code 1)"),
+            ft.DropdownOption(key="2", text="Female (Code 2)"),
+        ],
+    )
+
+    age_dropdown = ft.Dropdown(
+        label="Age Range",
+        value="1",
+        options=[
+            ft.DropdownOption(key="1", text="Age Group 1 (Code 1)"),
+            ft.DropdownOption(key="2", text="Age Group 2 (Code 2)"),
+        ],
+    )
+
+    result_text = ft.Text(
+        "وزن پیش‌بینی‌شده مغز: هنوز محاسبه نشده است",
+        size=14,
+        weight=ft.FontWeight.BOLD,
+        color=ft.Colors.BLUE_800,
+    )
+
+    # تابع محاسبه پیش‌بینی با مدل
+    def handle_predict(e):
+        if not model:
+            result_text.value = "❌ خطا: مدل بارگذاری نشده است!"
+            result_text.color = ft.Colors.RED
+            page.update()
+            return
+
+        try:
+            head_val = float(head_size_input.value.strip())
+            gender_val = float(gender_dropdown.value)
+            age_val = float(age_dropdown.value)
+
+            # ترتیب ویژگی‌ها در مدل: ['Head Size(cm^3)', 'Gender', 'Age Range']
+            features = np.array([[head_val, gender_val, age_val]])
+            prediction = model.predict(features)[0]
+
+            result_text.value = f"🧠 وزن تخمینی مغز: {prediction:.2f} گرم"
+            result_text.color = ft.Colors.GREEN
+        except ValueError:
+            result_text.value = "⚠️ لطفاً یک عدد معتبر برای Head Size وارد کنید!"
+            result_text.color = ft.Colors.RED
+        except Exception as ex:
+            result_text.value = f"❌ خطا در پیش‌بینی: {str(ex)}"
+            result_text.color = ft.Colors.RED
+
+        page.update()
+
+    predict_btn = ft.Button(
+        content=ft.Text("محاسبه وزن مغز"),
+        on_click=handle_predict,
+    )
+
+    # بخش توضیحات درباره مدل
     about_card = ft.Card(
         content=ft.Container(
             content=ft.Column(
@@ -107,7 +166,11 @@ def main(page: ft.Page):
                 header_row,
                 subtitle,
                 ft.Divider(),
-                status_text,
+                head_size_input,
+                gender_dropdown,
+                age_dropdown,
+                predict_btn,
+                result_text,
                 ft.Divider(),
                 about_card,
             ],
