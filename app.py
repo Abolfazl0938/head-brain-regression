@@ -2,8 +2,9 @@ import flet as ft
 import joblib
 import numpy as np
 
-# ۱. بارگذاری مدل رگرسیون
+# بارگذاری مدل رگرسیون
 MODEL_PATH = "head_brain_model.joblib"
+
 try:
     model = joblib.load(MODEL_PATH)
     print("✅ Model loaded successfully!")
@@ -13,17 +14,17 @@ except Exception as e:
 
 
 def main(page: ft.Page):
-    # تنظیمات ظاهری صفحه سازگار با Flet 1.0+
+    # تنظیمات صفحه
     page.title = "Head & Brain Weight Predictor"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 20
 
-    # تنظیمات پنجره (ارتفاع را برای جا دادن فیلدها و نتیجه تنظیم کردیم)
+    # تنظیمات پنجره
     page.window.width = 450
     page.window.height = 750
     page.window.resizable = False
 
-    # تابع تغییر حالت روز و شب
+    # تغییر حالت روشن و تاریک
     def toggle_theme(e):
         if page.theme_mode == ft.ThemeMode.LIGHT:
             page.theme_mode = ft.ThemeMode.DARK
@@ -33,16 +34,17 @@ def main(page: ft.Page):
             page.theme_mode = ft.ThemeMode.LIGHT
             theme_btn.icon = ft.Icons.DARK_MODE
             theme_btn.tooltip = "تغییر به تم تاریک"
+
         page.update()
 
-    # دکمه سوئیچ تم
+    # دکمهٔ تغییر تم
     theme_btn = ft.IconButton(
         icon=ft.Icons.DARK_MODE,
         tooltip="تغییر به تم تاریک",
         on_click=toggle_theme,
     )
 
-    # عنوان بالای صفحه
+    # عنوان برنامه
     title = ft.Text(
         "🧠 Brain Weight Predictor",
         size=20,
@@ -64,13 +66,14 @@ def main(page: ft.Page):
         color=ft.Colors.GREY_600,
     )
 
-    # ورودی‌ها
+    # ورودی اندازهٔ سر
     head_size_input = ft.TextField(
         label="Head Size (cm³)",
         hint_text="مثال: 3500",
         keyboard_type=ft.KeyboardType.NUMBER,
     )
 
+    # انتخاب کد جنسیت
     gender_dropdown = ft.Dropdown(
         label="Gender",
         value="1",
@@ -80,6 +83,7 @@ def main(page: ft.Page):
         ],
     )
 
+    # انتخاب کد گروه سنی
     age_dropdown = ft.Dropdown(
         label="Age Range",
         value="1",
@@ -89,6 +93,7 @@ def main(page: ft.Page):
         ],
     )
 
+    # نمایش نتیجه یا خطا
     result_text = ft.Text(
         "وزن پیش‌بینی‌شده مغز: هنوز محاسبه نشده است",
         size=14,
@@ -96,40 +101,61 @@ def main(page: ft.Page):
         color=ft.Colors.BLUE_800,
     )
 
-    # تابع محاسبه پیش‌بینی با مدل
+    # اعتبارسنجی ورودی و محاسبهٔ پیش‌بینی
     def handle_predict(e):
-        if not model:
-            result_text.value = "❌ خطا: مدل بارگذاری نشده است!"
+        if model is None:
+            result_text.value = "❌ Error: model was not loaded."
+            result_text.color = ft.Colors.RED
+            page.update()
+            return
+
+        raw_head_size = (head_size_input.value or "").strip()
+
+        if not raw_head_size:
+            result_text.value = "⚠️ Please enter the head size."
             result_text.color = ft.Colors.RED
             page.update()
             return
 
         try:
-            head_val = float(head_size_input.value.strip())
+            head_val = float(raw_head_size)
+        except ValueError:
+            result_text.value = "⚠️ Head Size must be a valid number."
+            result_text.color = ft.Colors.RED
+            page.update()
+            return
+
+        if not np.isfinite(head_val) or head_val <= 0:
+            result_text.value = "⚠️ Head Size must be a positive number."
+            result_text.color = ft.Colors.RED
+            page.update()
+            return
+
+        try:
             gender_val = float(gender_dropdown.value)
             age_val = float(age_dropdown.value)
 
-            # ترتیب ویژگی‌ها در مدل: ['Head Size(cm^3)', 'Gender', 'Age Range']
+            # ترتیب ویژگی‌ها در مدل:
+            # Head Size(cm^3), Gender, Age Range
             features = np.array([[head_val, gender_val, age_val]])
             prediction = model.predict(features)[0]
 
-            result_text.value = f"🧠 وزن تخمینی مغز: {prediction:.2f} گرم"
+            result_text.value = f"🧠 Estimated Brain Weight: {prediction:.2f} grams"
             result_text.color = ft.Colors.GREEN
-        except ValueError:
-            result_text.value = "⚠️ لطفاً یک عدد معتبر برای Head Size وارد کنید!"
-            result_text.color = ft.Colors.RED
+
         except Exception as ex:
-            result_text.value = f"❌ خطا در پیش‌بینی: {str(ex)}"
+            result_text.value = f"❌ Prediction error: {ex}"
             result_text.color = ft.Colors.RED
 
         page.update()
 
+    # دکمهٔ محاسبه
     predict_btn = ft.Button(
         content=ft.Text("محاسبه وزن مغز"),
         on_click=handle_predict,
     )
 
-    # بخش توضیحات درباره مدل
+    # توضیحات مدل
     about_card = ft.Card(
         content=ft.Container(
             content=ft.Column(
@@ -159,7 +185,7 @@ def main(page: ft.Page):
         )
     )
 
-    # چیدمان عناصر
+    # چیدمان عناصر برنامه
     page.add(
         ft.Column(
             controls=[
